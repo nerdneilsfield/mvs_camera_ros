@@ -21,11 +21,13 @@ void MvsCamera::Init() { OpenDevice(); }
 void MvsCamera::Start() { StartGrabbing(); }
 
 void MvsCamera::OpenDevice() {
+  ROS_INFO("Opening device.....");
   int nRet = MV_OK;
   MV_CC_DEVICE_INFO_LIST stDeviceList;
   memset(&stDeviceList, 0, sizeof(MV_CC_DEVICE_INFO_LIST));
 
-  nRet = MV_CC_EnumDevices(MV_GIGE_DEVICE, &stDeviceList);
+  // nRet = MV_CC_EnumDevices(MV_GIGE_DEVICE, &stDeviceList);
+  nRet = MV_CC_EnumDevices(MV_GIGE_DEVICE | MV_USB_DEVICE, &stDeviceList);
   if (MV_OK != nRet) {
     ROS_ERROR("Enum Devices fail! nRet [0x%x]\n", nRet);
     std::exit(1);
@@ -88,9 +90,11 @@ void MvsCamera::OpenDevice() {
     ROS_ERROR("Start Grabbing fail! nRet [0x%x]\n", nRet);
     std::exit(7);
   }
+  ROS_INFO("Camera started!");
 }
 
 void MvsCamera::CloseDevice() {
+  ROS_INFO("Closing device.....");
   int nRet = 0;
   // ch:停止取流 | en:Stop grab image
   nRet = MV_CC_StopGrabbing(camera_handle_);
@@ -122,13 +126,14 @@ void MvsCamera::CloseDevice() {
 }
 
 void MvsCamera::StartGrabbing() {
+  ROS_INFO("Start grabbing image.....");
   MV_FRAME_OUT stOutFrame = {0};
   memset(&stOutFrame, 0, sizeof(MV_FRAME_OUT));
 
   while (ros::ok()) {
     int nRet = MV_CC_GetImageBuffer(camera_handle_, &stOutFrame, 1000);
     if (nRet == MV_OK) {
-      printf("Get One Frame: Width[%d], Height[%d], nFrameNum[%d]\n",
+      ROS_DEBUG("Get One Frame: Width[%d], Height[%d], nFrameNum[%d]\n",
              stOutFrame.stFrameInfo.nWidth, stOutFrame.stFrameInfo.nHeight,
              stOutFrame.stFrameInfo.nFrameNum);
     } else {
