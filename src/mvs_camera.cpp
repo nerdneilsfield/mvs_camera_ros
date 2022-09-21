@@ -156,6 +156,8 @@ void MvsCamera::StartGrabbing() {
       }
     }
   }
+
+  CloseDevice();
 }
 
 } // namespace mvs_camera
