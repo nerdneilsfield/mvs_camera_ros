@@ -130,17 +130,23 @@ void MvsCamera::StartGrabbing() {
   MV_FRAME_OUT stOutFrame = {0};
   memset(&stOutFrame, 0, sizeof(MV_FRAME_OUT));
 
+  int64_t frame_count = 0;
+
   while (ros::ok()) {
     int nRet = MV_CC_GetImageBuffer(camera_handle_, &stOutFrame, 1000);
     if (nRet == MV_OK) {
       ROS_DEBUG("Get One Frame: Width[%d], Height[%d], nFrameNum[%d]\n",
-             stOutFrame.stFrameInfo.nWidth, stOutFrame.stFrameInfo.nHeight,
-             stOutFrame.stFrameInfo.nFrameNum);
+                stOutFrame.stFrameInfo.nWidth, stOutFrame.stFrameInfo.nHeight,
+                stOutFrame.stFrameInfo.nFrameNum);
     } else {
       ROS_WARN("No data[0x%x]\n", nRet);
     }
 
     sensor_msgs::Image msg;
+
+    msg.header.stamp = ros::Time::now();
+    msg.header.seq = frame_count;
+    msg.header.frame_id = "camera";
 
     sensor_msgs::fillImage(msg, "rgb8", stOutFrame.stFrameInfo.nHeight,
                            stOutFrame.stFrameInfo.nWidth,
@@ -148,6 +154,7 @@ void MvsCamera::StartGrabbing() {
                            stOutFrame.pBufAddr);
     pub_.publish(msg);
     ros::spinOnce();
+    frame_count += 1;
 
     if (NULL != stOutFrame.pBufAddr) {
       nRet = MV_CC_FreeImageBuffer(camera_handle_, &stOutFrame);
