@@ -1,6 +1,7 @@
 #include <mvs_camera/mvs_camera.h>
 
 #include <ros/ros.h>
+// #include <nodelet/nodelet.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/fill_image.h>
 
@@ -38,6 +39,8 @@ void MvsCamera::OpenDevice() {
     ROS_ERROR("Find No Devices!\n");
     std::exit(2);
   }
+
+  PrintDeviceInfo(stDeviceList.pDeviceInfo[0]);
 
   nRet = MV_CC_CreateHandle(&camera_handle_, stDeviceList.pDeviceInfo[0]);
   if (MV_OK != nRet) {
@@ -123,6 +126,45 @@ void MvsCamera::CloseDevice() {
       camera_handle_ = NULL;
     }
   }
+}
+
+bool MvsCamera::PrintDeviceInfo(MV_CC_DEVICE_INFO *device_info) {
+  // check if the pointer is not NULL -------------------------------
+  if (nullptr== device_info) {
+    ROS_INFO("The Pointer of device_info is NULL");
+    return false;
+  }
+
+  // device is connected via ethernet -------------------------------
+  if (device_info->nTLayerType == MV_GIGE_DEVICE) {
+    int ip1 =
+        ((device_info->SpecialInfo.stGigEInfo.nCurrentIp & 0xff000000) >> 24);
+    int ip2 =
+        ((device_info->SpecialInfo.stGigEInfo.nCurrentIp & 0x00ff0000) >> 16);
+    int ip3 =
+        ((device_info->SpecialInfo.stGigEInfo.nCurrentIp & 0x0000ff00) >> 8);
+    int ip4 = (device_info->SpecialInfo.stGigEInfo.nCurrentIp & 0x000000ff);
+
+    // print current ip and user defined name
+    ROS_INFO("Device Model Name: %s",
+             device_info->SpecialInfo.stGigEInfo.chModelName);
+    ROS_INFO("CurrentIp: %d.%d.%d.%d", ip1, ip2, ip3, ip4);
+    ROS_INFO("UserDefinedName: %s",
+             device_info->SpecialInfo.stGigEInfo.chUserDefinedName);
+  }
+  // device is connected via usb -----------------------------------
+  else if (device_info->nTLayerType == MV_USB_DEVICE) {
+    ROS_INFO("Device Model Name: %s",
+             device_info->SpecialInfo.stUsb3VInfo.chModelName);
+    ROS_INFO("UserDefinedName: %s",
+             device_info->SpecialInfo.stUsb3VInfo.chUserDefinedName);
+  }
+  // device is not supported ---------------------------------------
+  else {
+    ROS_INFO("Device is not support");
+  }
+
+  return true;
 }
 
 void MvsCamera::StartGrabbing() {

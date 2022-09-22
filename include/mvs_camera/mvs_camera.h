@@ -21,6 +21,7 @@ private:
   void OpenDevice();
   void CloseDevice();
   void StartGrabbing();
+  bool PrintDeviceInfo(MV_CC_DEVICE_INFO* device_info);
   // void GrabOneFrame();
   // void Publish();
 
