@@ -130,7 +130,7 @@ void MvsCamera::CloseDevice() {
 
 bool MvsCamera::PrintDeviceInfo(MV_CC_DEVICE_INFO *device_info) {
   // check if the pointer is not NULL -------------------------------
-  if (nullptr== device_info) {
+  if (nullptr == device_info) {
     ROS_INFO("The Pointer of device_info is NULL");
     return false;
   }
@@ -172,6 +172,14 @@ void MvsCamera::StartGrabbing() {
   MV_FRAME_OUT stOutFrame = {0};
   memset(&stOutFrame, 0, sizeof(MV_FRAME_OUT));
 
+  MV_CC_PIXEL_CONVERT_PARAM stConvertParam = {0};
+
+  unsigned char *pDataForRGB = (unsigned char *)malloc(1920 * 1080 * 4 + 2048);
+
+  if (pDataForRGB == nullptr) {
+    ROS_ERROR("failed to alloc data for rgb");
+  }
+
   int64_t frame_count = 0;
 
   while (ros::ok()) {
@@ -190,10 +198,33 @@ void MvsCamera::StartGrabbing() {
     msg.header.seq = frame_count;
     msg.header.frame_id = "camera";
 
-    sensor_msgs::fillImage(msg, "rgb8", stOutFrame.stFrameInfo.nHeight,
-                           stOutFrame.stFrameInfo.nWidth,
-                           3 * stOutFrame.stFrameInfo.nWidth,
-                           stOutFrame.pBufAddr);
+    if (stOutFrame.stFrameInfo.enPixelType == PixelType_Gvsp_RGB8_Packed) {
+      sensor_msgs::fillImage(msg, "rgb8", stOutFrame.stFrameInfo.nHeight,
+                             stOutFrame.stFrameInfo.nWidth,
+                             3 * stOutFrame.stFrameInfo.nWidth,
+                             stOutFrame.pBufAddr);
+    } else {
+      stConvertParam.nWidth = stOutFrame.stFrameInfo.nWidth;
+      stConvertParam.nHeight = stOutFrame.stFrameInfo.nHeight;
+      stConvertParam.pSrcData = stOutFrame.pBufAddr;
+      stConvertParam.nSrcDataLen = stOutFrame.stFrameInfo.nFrameLen;
+      stConvertParam.enSrcPixelType = stOutFrame.stFrameInfo.enPixelType;
+      stConvertParam.enDstPixelType = PixelType_Gvsp_RGB8_Packed;
+      stConvertParam.pDstBuffer = pDataForRGB;
+      stConvertParam.nDstBufferSize =
+          stOutFrame.stFrameInfo.nWidth * stOutFrame.stFrameInfo.nHeight * 4 +
+          2048;
+      nRet = MV_CC_ConvertPixelType(camera_handle_, &stConvertParam);
+      if (MV_OK != nRet) {
+        ROS_WARN("MV_CC_ConvertPixelType fail! nRet [%x]\n", nRet);
+        continue;
+      }
+      sensor_msgs::fillImage(msg, "rgb8", stOutFrame.stFrameInfo.nHeight,
+                             stOutFrame.stFrameInfo.nWidth,
+                             3 * stOutFrame.stFrameInfo.nWidth,
+                             pDataForRGB);
+    }
+
     pub_.publish(msg);
     ros::spinOnce();
     frame_count += 1;
